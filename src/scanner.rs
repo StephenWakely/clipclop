@@ -1,7 +1,7 @@
 use crate::client::client;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use tokio::time::{sleep, Duration};
-use tracing::info;
+use tracing::{debug, info};
 
 pub async fn clipboard(server: String) {
     let mut clipboard = ClipboardContext::new().unwrap();
@@ -12,9 +12,10 @@ pub async fn clipboard(server: String) {
         let next = clipboard.get_contents().unwrap();
         if next != contents {
             contents = next;
-            println!("{}", contents);
-            // tx.send(contents.clone()).await.unwrap();
-            client(server.clone(), contents.clone()).await;
+            debug!("**{}**", contents);
+            if !contents.is_empty() {
+                client(server.clone(), contents.clone()).await;
+            }
         }
     }
 }
