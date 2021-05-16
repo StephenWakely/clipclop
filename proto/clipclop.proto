@@ -1,0 +1,15 @@
+syntax = "proto3";
+package clipclop;
+
+service ClipClop {
+	rpc SendClipboard(Clipboard) returns (ClipboardReply);
+}
+
+message Clipboard {
+	string contents = 1;
+}
+
+message ClipboardReply {
+	string message = 1;
+}
+
