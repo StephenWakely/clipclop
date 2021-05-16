@@ -47,15 +47,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    if only == Some("client") {
+    if only != Some("server") {
         info!("Scanning clipboard");
 
-        tokio::spawn(scanner::clipboard(server.to_string())).await?;
+        tokio::spawn(scanner::clipboard(server.to_string()));
     }
 
-    if only == Some("server") {
+    if only != Some("client") {
         info!("Listening on {}", port);
-        let addr = format!("127.0.0.1:{}", port).parse()?;
+        let addr = format!("0.0.0.0:{}", port).parse()?;
         let server = server::MyClipClop::default();
         Server::builder()
             .add_service(ClipClopServer::new(server))

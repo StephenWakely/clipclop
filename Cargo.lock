@@ -159,7 +159,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "clipclop2"
+name = "clipclop"
 version = "0.1.0"
 dependencies = [
  "clap",

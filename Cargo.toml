@@ -1,5 +1,5 @@
 [package]
-name = "clipclop2"
+name = "clipclop"
 version = "0.1.0"
 authors = ["Stephen Wakely <fungus.humungus@gmail.com>"]
 edition = "2018"
