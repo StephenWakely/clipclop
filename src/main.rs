@@ -1,6 +1,6 @@
 use crate::clipclop::clip_clop_server::ClipClopServer;
 use clap::{App, Arg};
-use tonic::transport::Server;
+use tonic::transport::{Server, Uri};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -52,6 +52,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<usize>()
         .expect("port must be a number");
     let server_addr = matches.value_of("server").expect("Need a server");
+    let mut server_uri: Uri = server_addr.parse()?;
+    if server_uri.scheme().is_none() {
+        // Default the scheme to http.
+        let mut parts = server_uri.into_parts();
+        parts.scheme = Some("http".parse().expect("http should be valid"));
+        if parts.path_and_query.is_none() {
+            parts.path_and_query = Some("/".parse().expect("root should be valid"));
+        }
+        server_uri = Uri::from_parts(parts)?;
+    }
+
     let only = matches.value_of("only");
 
     let subscriber = FmtSubscriber::builder()
@@ -62,10 +73,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match only {
         Some("server") => server(port).await?,
-        Some("client") => scanner::clipboard(server_addr.to_string()).await,
+        Some("client") => scanner::clipboard(server_uri).await,
         _ => {
             async {
-                let _ = tokio::join!(server(port), scanner::clipboard(server_addr.to_string()));
+                let _ = tokio::join!(server(port), scanner::clipboard(server_uri));
             }
             .await
         }
