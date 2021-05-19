@@ -1,5 +1,6 @@
 use crate::clipclop::clip_clop_server::ClipClopServer;
 use clap::{App, Arg};
+use tokio::sync::mpsc::{self, Sender};
 use tonic::transport::{Server, Uri};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -9,10 +10,10 @@ mod clipclop;
 mod scanner;
 mod server;
 
-async fn server(port: usize) -> Result<(), Box<dyn std::error::Error>> {
+async fn server(tx: Sender<String>, port: usize) -> Result<(), Box<dyn std::error::Error>> {
     info!("Listening on {}", port);
     let addr = format!("0.0.0.0:{}", port).parse()?;
-    let server = server::MyClipClop::default();
+    let server = server::MyClipClop { tx };
 
     Server::builder()
         .add_service(ClipClopServer::new(server))
@@ -71,12 +72,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
+    // Create an mpsc channel so the server can tell the scanner when it is changing the clipboard
+    // to prevent us sending back a clipboard we have just received.
+    let (tx, rx) = mpsc::channel(10);
+
     match only {
-        Some("server") => server(port).await?,
-        Some("client") => scanner::clipboard(server_uri).await,
+        Some("server") => server(tx, port).await?,
+        Some("client") => scanner::clipboard(rx, server_uri).await,
         _ => {
             async {
-                let _ = tokio::join!(server(port), scanner::clipboard(server_uri));
+                let _ = tokio::join!(server(tx, port), scanner::clipboard(rx, server_uri));
             }
             .await
         }
