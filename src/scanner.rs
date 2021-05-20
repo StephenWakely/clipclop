@@ -4,16 +4,16 @@ use tokio::{
     sync::mpsc::Receiver,
     time::{sleep, Duration},
 };
-use tonic::transport::Uri;
+use tonic::transport::{ClientTlsConfig, Uri};
 use tracing::{debug, error, info};
 
 /// Scans the clipboard once per second. If it changes, we send it to the server.
-pub async fn clipboard(mut rx: Receiver<String>, server: Uri) {
+pub async fn clipboard(tls: ClientTlsConfig, mut rx: Receiver<String>, server: Uri) {
     let mut clipboard = ClipboardContext::new().unwrap();
     let mut contents = clipboard.get_contents().unwrap();
 
     info!("Connecting to {}", server);
-    let mut client = connect(&server).await;
+    let mut client = connect(tls, &server).await;
 
     info!("Scanning clipboard");
     loop {

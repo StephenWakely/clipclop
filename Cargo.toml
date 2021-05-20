@@ -5,9 +5,9 @@ authors = ["Stephen Wakely <fungus.humungus@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-tonic = "0.4"
+tonic = { version = "0.4", features = ["tls"] }
 prost = "0.7"
-tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "fs"] }
 copypasta = "0.7"
 clap = "2"
 tracing = "0.1"
