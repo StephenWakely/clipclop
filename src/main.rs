@@ -2,8 +2,7 @@ use crate::clipclop::clip_clop_server::ClipClopServer;
 use clap::{App, Arg};
 use tokio::sync::mpsc::{self, Sender};
 use tonic::transport::{Certificate, ClientTlsConfig, Identity, Server, ServerTlsConfig, Uri};
-use tracing::{info, Level};
-use tracing_subscriber::FmtSubscriber;
+use tracing::info;
 
 mod client;
 mod clipclop;
@@ -35,6 +34,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::with_name("server")
                 .short("s")
                 .long("server")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("cacert")
+                .long("cacert")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("cert")
+                .short("c")
+                .long("cert")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("key")
+                .short("k")
+                .long("key")
                 .required(true)
                 .takes_value(true),
         )
@@ -71,35 +90,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let only = matches.value_of("only");
 
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    env_logger::init();
 
     // Load certs
-    let cert = tokio::fs::read("cert/machine1-cert.pem").await?;
-    let key = tokio::fs::read("cert/machine1-key.pem").await?;
-    let server_identity = Identity::from_pem(cert, key);
+    let cert = tokio::fs::read(matches.value_of("cert").expect("Need a cert")).await?;
+    let key = tokio::fs::read(matches.value_of("key").expect("Need a key")).await?;
+    let cacert = tokio::fs::read(matches.value_of("cacert").expect("Need a cacert")).await?;
+    let cacert = Certificate::from_pem(cacert);
 
-    let server_root_ca_cert = tokio::fs::read("cert/ca-cert.pem").await?;
-    let server_root_ca_cert = Certificate::from_pem(server_root_ca_cert);
-
-    let client_ca_cert = tokio::fs::read("cert/ca-cert.pem").await?;
-    let client_ca_cert = Certificate::from_pem(client_ca_cert);
-
-    let client_cert = tokio::fs::read("cert/machine1-cert.pem").await?;
-    let client_key = tokio::fs::read("cert/machine1-key.pem").await?;
-    let client_identity = Identity::from_pem(client_cert, client_key);
+    let identity = Identity::from_pem(cert, key);
 
     let clienttls = ClientTlsConfig::new()
-        .domain_name("localhost")
-        .ca_certificate(server_root_ca_cert)
-        .identity(client_identity);
+        .domain_name(server_uri.host().ok_or("Server must specify the host")?)
+        .ca_certificate(cacert.clone())
+        .identity(identity.clone());
 
     let servertls = ServerTlsConfig::new()
-        .identity(server_identity)
-        .client_ca_root(client_ca_cert);
+        .identity(identity)
+        .client_ca_root(cacert);
 
     // Create an mpsc channel so the server can tell the scanner when it is changing the clipboard
     // to prevent us sending back a clipboard we have just received.

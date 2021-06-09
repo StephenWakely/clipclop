@@ -10,7 +10,7 @@ use tracing::{debug, error, info};
 /// Scans the clipboard once per second. If it changes, we send it to the server.
 pub async fn clipboard(tls: ClientTlsConfig, mut rx: Receiver<String>, server: Uri) {
     let mut clipboard = ClipboardContext::new().unwrap();
-    let mut contents = clipboard.get_contents().unwrap();
+    let mut contents = clipboard.get_contents().ok();
 
     info!("Connecting to {}", server);
     let mut client = connect(tls, &server).await;
@@ -22,11 +22,22 @@ pub async fn clipboard(tls: ClientTlsConfig, mut rx: Receiver<String>, server: U
                     sleep(Duration::from_secs(1)).await;
                     match clipboard.get_contents() {
                         Ok(next) => {
-                            if next != contents {
-                                contents = next;
-                                debug!("**{}**", contents);
-                                if !contents.is_empty() {
-                                    send_clipboard(&mut client, contents.clone()).await;
+                            let update = match contents {
+                                Some(ref contents) if &next == contents => {
+                                    false
+                                }
+                                _ => true
+
+                            };
+
+                            if update {
+                                debug!("**{}**", next);
+                                contents = Some(next);
+                                match contents {
+                                    Some(ref contents) if !contents.is_empty() => {
+                                        send_clipboard(&mut client, contents.clone()).await;
+                                    },
+                                    _ => ()
                                 }
                             }
                         }
@@ -34,7 +45,7 @@ pub async fn clipboard(tls: ClientTlsConfig, mut rx: Receiver<String>, server: U
                     }
                 } => {}
 
-                next = rx.recv() => { contents = next.unwrap() }
+                next = rx.recv() => { contents = next }
         }
     }
 }
