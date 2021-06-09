@@ -27,3 +27,6 @@ openssl x509 -req -in machine2-req.pem -days 60 -CA ca-cert.pem -CAkey ca-key.pe
 
 echo "Machine 2's signed certificate"
 openssl x509 -in machine2-cert.pem -noout -text
+
+# 6. Destroy the CA private key
+rm ca-key.pem

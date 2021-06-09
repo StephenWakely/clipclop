@@ -34,12 +34,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::with_name("server")
                 .short("s")
                 .long("server")
+                .help("The address, including the port of the other machine to sync to")
                 .required(true)
                 .takes_value(true),
         )
         .arg(
             Arg::with_name("cacert")
                 .long("cacert")
+                .help("The cacert file that has signed both machines certs")
                 .required(true)
                 .takes_value(true),
         )
@@ -47,6 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::with_name("cert")
                 .short("c")
                 .long("cert")
+                .help("The certificate for this machine")
                 .required(true)
                 .takes_value(true),
         )
@@ -54,6 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::with_name("key")
                 .short("k")
                 .long("key")
+                .help("The private key for this machines certificate")
                 .required(true)
                 .takes_value(true),
         )
@@ -61,12 +65,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::with_name("port")
                 .short("p")
                 .long("port")
+                .help("The port to listen on")
                 .takes_value(true),
         )
         .arg(
             Arg::with_name("only")
                 .short("o")
                 .long("only")
+                .help("If we only want the server or client part")
                 .takes_value(true),
         )
         .get_matches();
@@ -79,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_addr = matches.value_of("server").expect("Need a server");
     let mut server_uri: Uri = server_addr.parse()?;
     if server_uri.scheme().is_none() {
-        // Default the scheme to http.
+        // Default the scheme to https.
         let mut parts = server_uri.into_parts();
         parts.scheme = Some("https".parse().expect("https should be valid"));
         if parts.path_and_query.is_none() {
@@ -117,13 +123,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some("server") => server(servertls, tx, port).await?,
         Some("client") => scanner::clipboard(clienttls, rx, server_uri).await,
         _ => {
-            async {
-                let _ = tokio::join!(
-                    server(servertls, tx, port),
-                    scanner::clipboard(clienttls, rx, server_uri)
-                );
-            }
-            .await
+            tokio::join!(
+                server(servertls, tx, port),
+                scanner::clipboard(clienttls, rx, server_uri)
+            )
+            .0?;
         }
     }
 
